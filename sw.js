@@ -1,28 +1,44 @@
-const CACHE_NAME = 'presensi-v1';
-// Daftar file yang ingin kita simpan agar bisa dibuka tanpa internet
+const CACHE_NAME = 'aic-presence-v2';
 const ASSETS_TO_CACHE = [
-  './',
-  './index.html',
-  './manifest.json',
-  'https://unpkg.com/dexie/dist/dexie.js' // Kita ikut simpan library Dexie juga
+  'index.html',
+  'manifest.json',
+  'https://unpkg.com/dexie/dist/dexie.js'
 ];
 
-// 1. Tahap Install: HP akan mendownload semua file di atas
+// Tahap Install: Amankan semua aset penting ke dalam Cache storage
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('Service Worker: Mengamankan aset ke dalam cache lokal...');
+      console.log('AIC SW: Caching core assets successfully.');
       return cache.addAll(ASSETS_TO_CACHE);
     })
   );
 });
 
-// 2. Tahap Fetch: Jika offline, ambil file dari cache lokal HP, bukan dari internet
+// Tahap Aktivasi: Bersihkan cache versi lama jika ada pembaruan kode
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cache) => {
+          if (cache !== CACHE_NAME) {
+            console.log('AIC SW: Clearing old cache storage.');
+            return caches.delete(cache);
+          }
+        })
+      );
+    })
+  );
+});
+
+// Strategi Intersepsi: Utamakan ambil data dari cache agar instan & mendukung offline
 self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
-      // Jika filenya ada di memori HP, pakai itu. Jika tidak, baru cari ke internet.
-      return cachedResponse || fetch(event.request);
+      if (cachedResponse) {
+        return cachedResponse;
+      }
+      return fetch(event.request);
     })
   );
 });
